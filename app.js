@@ -1,4 +1,5 @@
 const STORAGE_KEY = "worldCupPredictorState";
+const APP_DATA_VERSION = "20260603-supabase-source-of-truth-v2";
 const DISPLAY_TIME_ZONE = "Indian/Maldives";
 const DISPLAY_TIME_ZONE_LABEL = "MVT";
 const ADMIN_EMAILS = ["ahmedsimaaz09@gmail.com"];
@@ -125,7 +126,8 @@ let selectedLeaderboardEmail = null;
 const backend = {
   client: null,
   ready: false,
-  syncing: false
+  syncing: false,
+  loadedShared: false
 };
 
 const loginPanel = document.querySelector("#signInPanel");
@@ -223,15 +225,20 @@ document.querySelector("#fixturesView").addEventListener("submit", (event) => {
 
 exportButton.addEventListener("click", exportCsv);
 
-resetButton.addEventListener("click", () => {
-  if (!confirm("Reset fixtures, predictions, and results in this browser?")) return;
+resetButton.addEventListener("click", async () => {
+  if (!isAdminUser()) return;
+  if (!confirm("Refresh local cache from shared data? This will not delete database data.")) return;
+  const currentUser = state.currentUser;
   state = createInitialState();
+  state.currentUser = currentUser;
   saveState();
   render();
+  await loadSharedState();
 });
 
 function createInitialState() {
   return {
+    appVersion: APP_DATA_VERSION,
     currentUser: null,
     users: {},
     fixtures: cloneOfficialFixtures(),
@@ -246,6 +253,9 @@ function loadState() {
 
   try {
     const parsed = JSON.parse(stored);
+    if (parsed.appVersion !== APP_DATA_VERSION) {
+      return createInitialState();
+    }
     const state = {
       ...createInitialState(),
       ...parsed,
@@ -284,12 +294,10 @@ async function initBackend() {
   backend.ready = true;
   renderSyncStatus("Connecting to shared database...");
 
-  loadSharedState()
-    .then(pushLocalStateToBackend)
-    .catch((error) => {
-      console.error(error);
-      renderSyncStatus("Shared database connection failed. Local changes are still saved in this browser.");
-    });
+  loadSharedState().catch((error) => {
+    console.error(error);
+    renderSyncStatus("Shared database connection failed. Local changes are still saved in this browser.");
+  });
 
   window.setInterval(loadSharedState, 30000);
 }
@@ -316,6 +324,7 @@ async function loadSharedState() {
     }
 
     applySharedRows({ players, predictions, results, fixtureOverrides });
+    backend.loadedShared = true;
     saveState();
     render();
     renderSyncStatus();
@@ -328,6 +337,9 @@ async function loadSharedState() {
 }
 
 function applySharedRows({ players = [], predictions = [], results = [], fixtureOverrides = [] }) {
+  state.users = {};
+  state.predictions = {};
+
   players.forEach((player) => {
     state.users[player.email] = {
       email: player.email,
@@ -347,7 +359,7 @@ function applySharedRows({ players = [], predictions = [], results = [], fixture
 
   const resultByFixture = new Map(results.map((result) => [result.fixture_id, result]));
   const overrideByFixture = new Map(fixtureOverrides.map((override) => [override.fixture_id, override]));
-  state.fixtures = state.fixtures.map((fixture) => {
+  state.fixtures = cloneOfficialFixtures().map((fixture) => {
     const result = resultByFixture.get(fixture.id);
     const override = overrideByFixture.get(fixture.id);
     return {
@@ -367,24 +379,8 @@ function applySharedRows({ players = [], predictions = [], results = [], fixture
   });
 }
 
-async function pushLocalStateToBackend() {
-  if (!backend.ready) return;
-
-  await Promise.all(Object.values(state.users).map((user) => syncPlayerToBackend(user)));
-
-  const predictionWrites = [];
-  Object.entries(state.predictions).forEach(([email, predictions]) => {
-    Object.entries(predictions).forEach(([fixtureId, prediction]) => {
-      predictionWrites.push(syncPredictionToBackend(email, fixtureId, prediction));
-    });
-  });
-
-  const resultWrites = state.fixtures.filter((fixture) => fixture.result).map((fixture) => syncResultToBackend(fixture));
-  await Promise.all([...predictionWrites, ...resultWrites]);
-}
-
 async function syncPlayerToBackend(user) {
-  if (!backend.ready || !user?.email) return;
+  if (!backend.ready || !backend.loadedShared || !user?.email) return;
 
   const { error } = await backend.client.from("players").upsert(
     {
@@ -399,7 +395,7 @@ async function syncPlayerToBackend(user) {
 }
 
 async function syncPredictionToBackend(email, fixtureId, prediction) {
-  if (!backend.ready || !email || !prediction) return;
+  if (!backend.ready || !backend.loadedShared || !email || !prediction) return;
 
   await syncPlayerToBackend(state.users[email] || { email, name: email.split("@")[0] });
   const { error } = await backend.client.from("predictions").upsert(
@@ -416,7 +412,7 @@ async function syncPredictionToBackend(email, fixtureId, prediction) {
 }
 
 async function syncResultToBackend(fixture) {
-  if (!backend.ready || !fixture?.result) return;
+  if (!backend.ready || !backend.loadedShared || !fixture?.result) return;
 
   const { error } = await backend.client.from("results").upsert(
     {
@@ -431,7 +427,7 @@ async function syncResultToBackend(fixture) {
 }
 
 async function syncFixtureOverrideToBackend(fixture) {
-  if (!backend.ready || !fixture?.id || !isAdminUser()) return;
+  if (!backend.ready || !backend.loadedShared || !fixture?.id || !isAdminUser()) return;
 
   const { error } = await backend.client.from("fixture_overrides").upsert(
     {
@@ -492,6 +488,7 @@ function renderSession() {
   loginPanel.classList.toggle("hidden", Boolean(user));
   profilePanel.classList.toggle("hidden", !user);
   addResultButton.classList.toggle("hidden", !isAdminUser());
+  resetButton.classList.toggle("hidden", !isAdminUser());
   document.querySelector(".fixture-editor")?.classList.toggle("hidden", !isAdminUser());
 
   if (!user) return;
