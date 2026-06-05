@@ -577,6 +577,17 @@ button[type="submit"],
   min-width: 0;
 }
 
+.leader-player-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.supporter-team {
+  display: inline-flex;
+  align-items: center;
+}
+
 .leader-name span,
 .leader-stat span {
   color: var(--muted);

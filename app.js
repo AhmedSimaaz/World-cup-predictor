@@ -159,6 +159,7 @@ const profileName = document.querySelector("#profileName");
 const profileEmail = document.querySelector("#profileEmail");
 const avatar = document.querySelector("#avatar");
 const loginForm = document.querySelector("#signInPanel form");
+const favoriteTeamSelect = document.querySelector("#favoriteTeamInput");
 const photoInput = document.querySelector("#photoInput");
 const switchUserButton = document.querySelector("#switchUserButton");
 const matchesList = document.querySelector("#matchesList");
@@ -176,11 +177,14 @@ document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => showView(tab.dataset.view));
 });
 
+renderFavoriteTeamOptions();
+
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = new FormData(loginForm);
   const email = String(form.get("email") || loginForm.querySelector("input[type='email']").value).trim().toLowerCase();
   const name = String(form.get("name") || "").trim() || email.split("@")[0] || "Player";
+  const favoriteTeam = String(form.get("favoriteTeam") || "").trim();
 
   if (!isValidEmail(email)) {
     renderSyncStatus("Please enter a valid email address.");
@@ -194,9 +198,16 @@ loginForm.addEventListener("submit", (event) => {
     return;
   }
 
+  if (!isWorldCupTeam(favoriteTeam)) {
+    renderSyncStatus("Please choose your favorite World Cup team.");
+    favoriteTeamSelect.focus();
+    return;
+  }
+
   state.currentUser = email;
   state.users[email] = state.users[email] || { email, name };
   state.users[email].name = name;
+  state.users[email].favoriteTeam = favoriteTeam;
   saveState();
   syncPlayerToBackend(state.users[email]);
   loginForm.reset();
@@ -375,6 +386,7 @@ async function loadSharedState() {
 }
 
 function applySharedRows({ players = [], predictions = [], results = [], fixtureOverrides = [] }) {
+  const previousUsers = state.users || {};
   state.users = {};
   state.predictions = {};
 
@@ -384,7 +396,8 @@ function applySharedRows({ players = [], predictions = [], results = [], fixture
     state.users[email] = {
       email,
       name: player.name,
-      photo: player.photo || ""
+      photo: player.photo || "",
+      favoriteTeam: player.favorite_team || player.favoriteTeam || previousUsers[email]?.favoriteTeam || ""
     };
   });
 
@@ -447,15 +460,21 @@ function applySharedRows({ players = [], predictions = [], results = [], fixture
 async function syncPlayerToBackend(user) {
   if (!backend.ready || !backend.loadedShared || !user?.email || !isApprovedEmail(user.email)) return;
 
-  const { error } = await backend.client.from("players").upsert(
-    {
-      email: normalizeEmail(user.email),
-      name: user.name || user.email.split("@")[0],
-      photo: user.photo || null,
-      updated_at: new Date().toISOString()
-    },
-    { onConflict: "email" }
-  );
+  const playerRow = {
+    email: normalizeEmail(user.email),
+    name: user.name || user.email.split("@")[0],
+    photo: user.photo || null,
+    favorite_team: user.favoriteTeam || null,
+    updated_at: new Date().toISOString()
+  };
+
+  let { error } = await backend.client.from("players").upsert(playerRow, { onConflict: "email" });
+  if (error && String(error.message || "").includes("favorite_team")) {
+    delete playerRow.favorite_team;
+    const retry = await backend.client.from("players").upsert(playerRow, { onConflict: "email" });
+    error = retry.error;
+    if (!error) renderSyncStatus("Favorite team is saved locally. Run the database update SQL so it syncs for everyone.");
+  }
   if (error) console.error(error);
 }
 
@@ -668,7 +687,10 @@ function renderLeaderboard() {
           <div class="leader-name">
             ${renderAvatarMarkup(row.user)}
             <div>
-              <strong>${escapeHtml(row.user.name)}</strong>
+              <span class="leader-player-name">
+                <strong>${escapeHtml(row.user.name)}</strong>
+                ${renderSupporterFlagMarkup(row.user)}
+              </span>
               <span>${escapeHtml(row.user.email)}</span>
             </div>
           </div>
@@ -919,7 +941,9 @@ function calculateScore(email) {
 }
 
 function getCurrentUser() {
-  return state.currentUser ? state.users[state.currentUser] : null;
+  const user = state.currentUser ? state.users[state.currentUser] : null;
+  if (!user || !isApprovedEmail(user.email) || !isWorldCupTeam(user.favoriteTeam)) return null;
+  return user;
 }
 
 function isAdminUser() {
@@ -953,6 +977,27 @@ function cleanUnapprovedLocalState(nextState) {
   });
 }
 
+function renderFavoriteTeamOptions() {
+  if (!favoriteTeamSelect) return;
+  favoriteTeamSelect.innerHTML = `<option value="">Choose a team</option>${getWorldCupTeams()
+    .map((team) => `<option value="${escapeHtml(team)}">${escapeHtml(team)}</option>`)
+    .join("")}`;
+}
+
+function getWorldCupTeams() {
+  return [...new Set(WORLD_CUP_FIXTURES.flatMap((fixture) => [fixture.teamA, fixture.teamB]))]
+    .filter((team) => team && !isPlaceholderTeam(team))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function isWorldCupTeam(team) {
+  return getWorldCupTeams().includes(String(team || "").trim());
+}
+
+function isPlaceholderTeam(team) {
+  return /^(team tbd|group .*(winner|runner-up|3rd place)|match \d+ (winner|loser))$/i.test(String(team || "").trim());
+}
+
 function getPrediction(email, fixtureId) {
   return state.predictions[email]?.[fixtureId] || null;
 }
@@ -982,6 +1027,17 @@ function renderAvatarMarkup(user) {
     return `<span class="avatar avatar-small has-photo" style="background-image: url('${escapeHtml(user.photo)}')" aria-hidden="true"></span>`;
   }
   return `<span class="avatar avatar-small" aria-hidden="true">${escapeHtml(getInitial(user))}</span>`;
+}
+
+function renderSupporterFlagMarkup(user) {
+  const team = user.favoriteTeam;
+  const code = FLAG_CODE_BY_TEAM[team];
+  if (!team || !code) return "";
+  return `
+    <span class="supporter-team" title="Supports ${escapeHtml(team)}" aria-label="Supports ${escapeHtml(team)}">
+      <img class="country-flag" src="https://flagcdn.com/${code.toLowerCase()}.svg" alt="" loading="lazy" />
+    </span>
+  `;
 }
 
 function getInitial(user) {
