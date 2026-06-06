@@ -766,11 +766,11 @@ function renderLeaderboard() {
               <span>${escapeHtml(row.user.email)}</span>
             </div>
           </div>
-          <div class="leader-stat"><strong>${row.points}</strong></div>
-          <div class="leader-stat"><strong>${row.exact}</strong></div>
-          <div class="leader-stat"><strong>${row.goalDiff}</strong></div>
-          <div class="leader-stat"><strong>${row.correct}</strong></div>
-          <div class="leader-stat"><strong>${row.predicted}</strong></div>
+          <div class="leader-stat"><span>Points</span><strong>${row.points}</strong></div>
+          <div class="leader-stat"><span>Exact</span><strong>${row.exact}</strong></div>
+          <div class="leader-stat"><span>Goal diff</span><strong>${row.goalDiff}</strong></div>
+          <div class="leader-stat"><span>Correct</span><strong>${row.correct}</strong></div>
+          <div class="leader-stat"><span>Predicted</span><strong>${row.predicted}</strong></div>
         </div>
       `
         )

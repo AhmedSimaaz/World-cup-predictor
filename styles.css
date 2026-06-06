@@ -777,6 +777,10 @@ button[type="submit"],
   font-weight: 700;
 }
 
+.leader-stat span {
+  display: none;
+}
+
 .leader-stat {
   text-align: right;
 }
@@ -993,13 +997,65 @@ button[type="submit"],
 
   .toolbar,
   .fixture-editor,
-  .leader-header,
-  .leader-row,
   .rankings-row,
   .prediction-detail-row,
   .fixture-row,
   .result-row {
     grid-template-columns: 1fr;
+  }
+
+  .leader-header {
+    display: none;
+  }
+
+  .leader-row {
+    grid-template-columns: 42px repeat(5, minmax(0, 1fr));
+    gap: 10px 12px;
+    padding: 12px;
+  }
+
+  .rank-cell {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .leader-name {
+    grid-column: 2 / -1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .leader-name > div {
+    min-width: 0;
+  }
+
+  .leader-player-name,
+  .leader-name span {
+    max-width: 100%;
+  }
+
+  .leader-name span:not(.supporter-team) {
+    overflow-wrap: anywhere;
+  }
+
+  .leader-stat {
+    display: grid;
+    gap: 3px;
+    text-align: center;
+  }
+
+  .leader-stat span {
+    display: block;
+    font-size: 0.64rem;
+    text-transform: uppercase;
+  }
+
+  .leader-stat strong {
+    font-size: 1rem;
+  }
+
+  .leader-row .leader-stat {
+    grid-row: 2;
   }
 
   .match-card {
