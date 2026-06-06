@@ -997,11 +997,35 @@ button[type="submit"],
 
   .toolbar,
   .fixture-editor,
-  .rankings-row,
   .prediction-detail-row,
   .fixture-row,
   .result-row {
     grid-template-columns: 1fr;
+  }
+
+  .rankings-list {
+    gap: 5px;
+  }
+
+  .rankings-row {
+    grid-template-columns: 46px minmax(0, 1fr) 64px;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 8px;
+    font-size: 0.82rem;
+  }
+
+  .rankings-row .team-label {
+    gap: 6px;
+  }
+
+  .rankings-row .country-flag {
+    width: 22px;
+    height: 16px;
+  }
+
+  .rankings-row-head {
+    font-size: 0.64rem;
   }
 
   .leader-header {
