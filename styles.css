@@ -738,7 +738,7 @@ button[type="submit"],
 
 .player-predictions {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   margin-top: 6px;
 }
 
@@ -753,7 +753,7 @@ button[type="submit"],
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 10px 14px;
 }
 
 .player-predictions-head strong,
@@ -770,16 +770,25 @@ button[type="submit"],
 
 .prediction-detail-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .prediction-detail-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, 96px);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 82px 82px 58px;
+  gap: 10px;
   align-items: center;
-  padding: 12px 16px;
-  border-left: 6px solid var(--line);
+  min-height: 50px;
+  padding: 8px 12px;
+  border-left: 5px solid var(--line);
+}
+
+.prediction-detail-row strong {
+  font-size: 0.94rem;
+}
+
+.prediction-detail-row div:nth-child(n + 2) strong {
+  font-size: 1rem;
 }
 
 .prediction-detail-row div:nth-child(n + 2) {
