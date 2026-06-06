@@ -353,6 +353,7 @@ function createInitialState() {
     users: {},
     fixtures: cloneOfficialFixtures(),
     predictions: {},
+    leaderboardSnapshot: { signature: "", ranks: {}, movements: {} },
     fixtureSetVersion: WORLD_CUP_FIXTURES_VERSION
   };
 }
@@ -371,7 +372,8 @@ function loadState() {
       ...parsed,
       users: parsed.users || {},
       fixtures: parsed.fixtures || cloneOfficialFixtures(),
-      predictions: parsed.predictions || {}
+      predictions: parsed.predictions || {},
+      leaderboardSnapshot: parsed.leaderboardSnapshot || { signature: "", ranks: {}, movements: {} }
     };
     cleanUnapprovedLocalState(state);
     syncOfficialFixtures(state);
@@ -734,6 +736,8 @@ function renderLeaderboard() {
     return;
   }
 
+  const rankMovements = updateLeaderboardMovements(rows);
+
   leaderboard.innerHTML = `
       <div class="leader-header">
         <span></span>
@@ -748,7 +752,10 @@ function renderLeaderboard() {
         .map(
           (row, index) => `
         <div class="leader-row leader-rank-${index + 1}" role="button" tabindex="0" data-email="${escapeHtml(row.user.email)}">
-          <div class="rank">${index + 1}</div>
+          <div class="rank-cell">
+            <div class="rank">${index + 1}</div>
+            ${renderRankMovementMarkup(rankMovements[row.user.email])}
+          </div>
           <div class="leader-name">
             ${renderAvatarMarkup(row.user)}
             <div>
@@ -781,6 +788,47 @@ function renderLeaderboard() {
       }
     });
   });
+}
+
+function updateLeaderboardMovements(rows) {
+  const currentRanks = Object.fromEntries(rows.map((row, index) => [row.user.email, index + 1]));
+  const signature = rows
+    .map((row, index) => `${row.user.email}:${index + 1}:${row.points}:${row.exact}:${row.goalDiff}:${row.correct}:${row.predicted}`)
+    .join("|");
+  const previous = state.leaderboardSnapshot || { signature: "", ranks: {}, movements: {} };
+
+  if (previous.signature === signature) {
+    return previous.movements || {};
+  }
+
+  const movements = {};
+  rows.forEach((row, index) => {
+    const currentRank = index + 1;
+    const previousRank = previous.ranks?.[row.user.email];
+    if (previousRank && previousRank > currentRank) {
+      movements[row.user.email] = previousRank - currentRank;
+    } else if (previousRank && previousRank < currentRank) {
+      movements[row.user.email] = previousRank - currentRank;
+    } else if (previousRank && previousRank === currentRank) {
+      movements[row.user.email] = 0;
+    }
+  });
+
+  state.leaderboardSnapshot = { signature, ranks: currentRanks, movements };
+  saveState();
+  return movements;
+}
+
+function renderRankMovementMarkup(movement) {
+  if (movement === undefined || movement === null) return "";
+  if (movement === 0) {
+    return `<span class="rank-move rank-same" title="No rank change" aria-label="No rank change">–</span>`;
+  }
+  const places = Math.abs(movement);
+  const direction = movement > 0 ? "up" : "down";
+  const arrow = movement > 0 ? "↑" : "↓";
+  const label = `Moved ${direction} ${places} ${places === 1 ? "place" : "places"}`;
+  return `<span class="rank-move rank-${direction}" title="${label}" aria-label="${label}">${arrow}</span>`;
 }
 
 function renderRankings() {

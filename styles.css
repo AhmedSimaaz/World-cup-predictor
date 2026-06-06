@@ -548,7 +548,7 @@ button[type="submit"],
 .leader-header,
 .leader-row {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) repeat(5, minmax(78px, 88px));
+  grid-template-columns: 62px minmax(0, 1fr) repeat(5, minmax(78px, 88px));
   gap: 12px;
   align-items: center;
 }
@@ -675,6 +675,30 @@ button[type="submit"],
   color: white;
   background: var(--navy);
   font-weight: 800;
+}
+
+.rank-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rank-move {
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.rank-up {
+  color: #14885f;
+}
+
+.rank-down {
+  color: #c74337;
+}
+
+.rank-same {
+  color: #94a3b8;
 }
 
 .leader-rank-1 {
