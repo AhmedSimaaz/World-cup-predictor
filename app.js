@@ -686,7 +686,7 @@ function renderMatches() {
     const locked = isFixtureLocked(fixture);
     const card = template.content.firstElementChild.cloneNode(true);
     card.classList.toggle("locked", locked);
-    card.querySelector(".round").textContent = fixture.round;
+    card.querySelector(".round").textContent = formatRoundLabel(fixture);
     card.querySelector(".date").textContent = formatDate(fixture.date);
     card.querySelector(".team-a").textContent = fixture.teamA;
     card.querySelector(".team-b").textContent = fixture.teamB;
@@ -983,7 +983,7 @@ function renderFixtureList() {
       (fixture) => `
         <form class="fixture-row ${canEditResults ? "fixture-row-admin" : ""} ${fixture.id === recentlyAddedFixtureId ? "fixture-row-new" : ""}" data-fixture-id="${fixture.id}">
           ${canEditResults ? renderEditableFixtureTeams(fixture) : `<strong>${formatTeamHtml(fixture.teamA)} vs ${formatTeamHtml(fixture.teamB)}</strong>`}
-          <span class="fixture-round">${escapeHtml(fixture.round)}</span>
+          <span class="fixture-round">${escapeHtml(formatRoundLabel(fixture))}</span>
           <span class="fixture-date">${formatDate(fixture.date)}</span>
           ${canEditResults ? renderEditableFixtureResult(fixture) : renderReadOnlyFixtureResult(fixture)}
           <span class="fixture-venue">${escapeHtml(fixture.venue)}</span>
@@ -1152,6 +1152,18 @@ function getTeamGroup(team) {
 
 function getPrediction(email, fixtureId) {
   return state.predictions[email]?.[fixtureId] || null;
+}
+
+function formatRoundLabel(fixture) {
+  const matchNumber = getOfficialMatchNumber(fixture);
+  return matchNumber ? `#${matchNumber} · ${fixture.round}` : fixture.round;
+}
+
+function getOfficialMatchNumber(fixture) {
+  const id = String(fixture?.id || "");
+  if (!WORLD_CUP_FIXTURES.some((item) => item.id === id)) return "";
+  const match = String(id || "").match(/^match-(\d+)$/);
+  return match ? match[1] : "";
 }
 
 function isFixtureLocked(fixture) {

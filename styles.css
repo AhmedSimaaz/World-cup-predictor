@@ -504,6 +504,11 @@ button[type="submit"],
   font-weight: 800;
 }
 
+.team-a {
+  justify-self: end;
+  text-align: right;
+}
+
 .team-label {
   display: inline-flex;
   align-items: center;
@@ -523,6 +528,7 @@ button[type="submit"],
 }
 
 .team-b {
+  justify-self: start;
   text-align: left;
 }
 
