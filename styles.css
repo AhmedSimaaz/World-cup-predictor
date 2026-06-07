@@ -1002,7 +1002,7 @@ button[type="submit"],
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 560px) {
   .shell {
     padding: 12px;
   }
