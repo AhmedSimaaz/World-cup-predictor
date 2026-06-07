@@ -342,17 +342,12 @@ button[type="submit"],
   background: white;
 }
 
-.cup-trophy {
-  display: grid;
-  place-items: center;
+.cup-logo {
+  display: block;
   width: 44px;
-  aspect-ratio: 1;
+  height: 44px;
   border-radius: 6px;
-  color: white;
-  font-weight: 900;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.22), transparent),
-    linear-gradient(135deg, var(--canada), var(--mexico) 48%, var(--usa));
+  object-fit: contain;
 }
 
 .cup-lockup strong,
