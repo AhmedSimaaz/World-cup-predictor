@@ -522,7 +522,7 @@ button[type="submit"],
 
 .score-form {
   display: grid;
-  grid-template-columns: 44px auto 44px 60px;
+  grid-template-columns: 44px auto 44px 72px;
   gap: 5px;
   align-items: center;
   transform: translateY(4px);
@@ -538,7 +538,9 @@ button[type="submit"],
 
 .score-form button {
   min-height: 34px;
-  padding: 0 12px;
+  min-width: 72px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .venue {
@@ -888,16 +890,42 @@ button[type="submit"],
 
 .fixture-team-editor input {
   min-height: 36px;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 0.9rem;
   font-weight: 800;
 }
 
-.fixture-row,
 .result-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 116px 190px minmax(190px, auto) minmax(160px, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(260px, 1.4fr) 82px 150px minmax(176px, auto) minmax(150px, 0.9fr);
+  gap: 10px;
   align-items: center;
   padding: 12px;
+}
+
+.fixture-row {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.8fr) 74px 150px 78px minmax(150px, 0.85fr);
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+}
+
+.fixture-row-admin {
+  grid-template-columns: minmax(280px, 1.4fr) 74px 150px minmax(176px, auto) minmax(150px, 0.9fr);
+}
+
+.fixture-row > strong {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.fixture-round,
+.fixture-date,
+.fixture-venue {
+  font-size: 0.88rem;
+  line-height: 1.25;
 }
 
 .fixture-result {
@@ -997,10 +1025,13 @@ button[type="submit"],
 
   .toolbar,
   .fixture-editor,
-  .prediction-detail-row,
   .fixture-row,
   .result-row {
     grid-template-columns: 1fr;
+  }
+
+  .fixture-row > strong {
+    white-space: normal;
   }
 
   .rankings-list {
@@ -1082,6 +1113,39 @@ button[type="submit"],
     grid-row: 2;
   }
 
+  .player-predictions-head {
+    padding: 7px 10px;
+  }
+
+  .prediction-detail-row {
+    grid-template-columns: minmax(0, 1fr) 46px 46px 36px;
+    gap: 6px;
+    min-height: 0;
+    padding: 6px 8px;
+    border-left-width: 3px;
+  }
+
+  .prediction-detail-row > div:first-child {
+    grid-column: auto;
+    min-width: 0;
+  }
+
+  .prediction-detail-row div:nth-child(n + 2) {
+    text-align: right;
+  }
+
+  .prediction-detail-row span {
+    font-size: 0.58rem;
+  }
+
+  .prediction-detail-row strong {
+    font-size: 0.76rem;
+  }
+
+  .prediction-detail-row div:nth-child(n + 2) strong {
+    font-size: 0.8rem;
+  }
+
   .match-card {
     padding: 10px 12px;
   }
@@ -1134,7 +1198,8 @@ button[type="submit"],
 
   .leader-stat,
   .leader-header span:nth-child(n + 3),
-  .prediction-detail-row div:nth-child(n + 2) {
+  .fixture-row,
+  .result-row {
     text-align: left;
   }
 

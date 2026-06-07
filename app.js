@@ -979,12 +979,12 @@ function renderFixtureList() {
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map(
       (fixture) => `
-        <form class="fixture-row ${fixture.id === recentlyAddedFixtureId ? "fixture-row-new" : ""}" data-fixture-id="${fixture.id}">
+        <form class="fixture-row ${canEditResults ? "fixture-row-admin" : ""} ${fixture.id === recentlyAddedFixtureId ? "fixture-row-new" : ""}" data-fixture-id="${fixture.id}">
           ${canEditResults ? renderEditableFixtureTeams(fixture) : `<strong>${formatTeamHtml(fixture.teamA)} vs ${formatTeamHtml(fixture.teamB)}</strong>`}
-          <span>${escapeHtml(fixture.round)}</span>
-          <span>${formatDate(fixture.date)}</span>
+          <span class="fixture-round">${escapeHtml(fixture.round)}</span>
+          <span class="fixture-date">${formatDate(fixture.date)}</span>
           ${canEditResults ? renderEditableFixtureResult(fixture) : renderReadOnlyFixtureResult(fixture)}
-          <span>${escapeHtml(fixture.venue)}</span>
+          <span class="fixture-venue">${escapeHtml(fixture.venue)}</span>
         </form>
       `
     )
