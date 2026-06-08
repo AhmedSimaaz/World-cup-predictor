@@ -816,11 +816,6 @@ button[type="submit"],
   gap: 8px;
 }
 
-.supporter-team {
-  display: inline-flex;
-  align-items: center;
-}
-
 .leader-name span,
 .leader-stat span {
   color: var(--muted);
@@ -1143,7 +1138,7 @@ button[type="submit"],
     max-width: 100%;
   }
 
-  .leader-name span:not(.supporter-team) {
+  .leader-name span {
     overflow-wrap: anywhere;
   }
 

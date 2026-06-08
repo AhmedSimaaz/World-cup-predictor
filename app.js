@@ -219,7 +219,6 @@ const profileName = document.querySelector("#profileName");
 const profileEmail = document.querySelector("#profileEmail");
 const avatar = document.querySelector("#avatar");
 const loginForm = document.querySelector("#signInPanel form");
-const favoriteTeamSelect = document.querySelector("#favoriteTeamInput");
 const photoInput = document.querySelector("#photoInput");
 const switchUserButton = document.querySelector("#switchUserButton");
 const matchesList = document.querySelector("#matchesList");
@@ -238,16 +237,11 @@ document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => showView(tab.dataset.view));
 });
 
-renderFavoriteTeamOptions();
-
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = new FormData(loginForm);
   const email = String(form.get("email") || loginForm.querySelector("input[type='email']").value).trim().toLowerCase();
   const name = String(form.get("name") || "").trim() || email.split("@")[0] || "Player";
-  const selectedFavoriteTeam = String(form.get("favoriteTeam") || "").trim();
-  const savedFavoriteTeam = state.users[email]?.favoriteTeam || "";
-  const favoriteTeam = selectedFavoriteTeam || savedFavoriteTeam;
 
   if (!isValidEmail(email)) {
     renderSyncStatus("Please enter a valid email address.");
@@ -261,16 +255,9 @@ loginForm.addEventListener("submit", (event) => {
     return;
   }
 
-  if (!isWorldCupTeam(favoriteTeam)) {
-    renderSyncStatus("Please choose your favorite World Cup team.");
-    favoriteTeamSelect.focus();
-    return;
-  }
-
   state.currentUser = email;
   state.users[email] = state.users[email] || { email, name };
   state.users[email].name = name;
-  state.users[email].favoriteTeam = favoriteTeam;
   saveState();
   syncPlayerToBackend(state.users[email]);
   loginForm.reset();
@@ -333,9 +320,9 @@ document.querySelector("#fixturesView").addEventListener("submit", (event) => {
   renderSyncStatus("Fixture added. It is saved to the shared database and shown in date order.");
 });
 
-exportButton.addEventListener("click", exportCsv);
+exportButton?.addEventListener("click", exportCsv);
 
-resetButton.addEventListener("click", async () => {
+resetButton?.addEventListener("click", async () => {
   if (!isAdminUser()) return;
   if (!confirm("Refresh local cache from shared data? This will not delete database data.")) return;
   const currentUser = state.currentUser;
@@ -529,17 +516,10 @@ async function syncPlayerToBackend(user) {
     email: normalizeEmail(user.email),
     name: user.name || user.email.split("@")[0],
     photo: user.photo || null,
-    favorite_team: user.favoriteTeam || null,
     updated_at: new Date().toISOString()
   };
 
-  let { error } = await backend.client.from("players").upsert(playerRow, { onConflict: "email" });
-  if (error && String(error.message || "").includes("favorite_team")) {
-    delete playerRow.favorite_team;
-    const retry = await backend.client.from("players").upsert(playerRow, { onConflict: "email" });
-    error = retry.error;
-    if (!error) renderSyncStatus("Favorite team is saved locally. Run the database update SQL so it syncs for everyone.");
-  }
+  const { error } = await backend.client.from("players").upsert(playerRow, { onConflict: "email" });
   if (error) console.error(error);
 }
 
@@ -642,7 +622,8 @@ function renderSession() {
   loginPanel.classList.toggle("hidden", Boolean(user));
   profilePanel.classList.toggle("hidden", !user);
   addResultButton.classList.toggle("hidden", !isAdminUser());
-  resetButton.classList.toggle("hidden", !isAdminUser());
+  exportButton?.classList.toggle("hidden", !isAdminUser());
+  resetButton?.classList.toggle("hidden", !isAdminUser());
   document.querySelector(".fixture-editor")?.classList.toggle("hidden", !isAdminUser());
 
   if (!user) return;
@@ -763,7 +744,6 @@ function renderLeaderboard() {
             <div>
               <span class="leader-player-name">
                 <strong>${escapeHtml(row.user.name)}</strong>
-                ${renderSupporterFlagMarkup(row.user)}
               </span>
               <span>${escapeHtml(row.user.email)}</span>
             </div>
@@ -1089,7 +1069,7 @@ function calculateScore(email) {
 
 function getCurrentUser() {
   const user = state.currentUser ? state.users[state.currentUser] : null;
-  if (!user || !isApprovedEmail(user.email) || !isWorldCupTeam(user.favoriteTeam)) return null;
+  if (!user || !isApprovedEmail(user.email)) return null;
   return user;
 }
 
@@ -1122,13 +1102,6 @@ function cleanUnapprovedLocalState(nextState) {
       delete nextState.predictions[email];
     }
   });
-}
-
-function renderFavoriteTeamOptions() {
-  if (!favoriteTeamSelect) return;
-  favoriteTeamSelect.innerHTML = `<option value="">Choose a team</option>${getWorldCupTeams()
-    .map((team) => `<option value="${escapeHtml(team)}">${escapeHtml(team)}</option>`)
-    .join("")}`;
 }
 
 function getWorldCupTeams() {
@@ -1191,17 +1164,6 @@ function renderAvatarMarkup(user) {
     return `<span class="avatar avatar-small has-photo" style="background-image: url('${escapeHtml(user.photo)}')" aria-hidden="true"></span>`;
   }
   return `<span class="avatar avatar-small" aria-hidden="true">${escapeHtml(getInitial(user))}</span>`;
-}
-
-function renderSupporterFlagMarkup(user) {
-  const team = user.favoriteTeam;
-  const code = FLAG_CODE_BY_TEAM[team];
-  if (!team || !code) return "";
-  return `
-    <span class="supporter-team" title="Supports ${escapeHtml(team)}" aria-label="Supports ${escapeHtml(team)}">
-      <img class="country-flag" src="https://flagcdn.com/${code.toLowerCase()}.svg" alt="" loading="lazy" />
-    </span>
-  `;
 }
 
 function getInitial(user) {
