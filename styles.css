@@ -833,6 +833,16 @@ button.secondary-light[type="submit"] {
   gap: 8px;
 }
 
+.leader-favorite-flag {
+  display: inline-flex;
+  align-items: center;
+}
+
+.leader-favorite-flag .country-flag {
+  width: 22px;
+  height: 16px;
+}
+
 .leader-name span,
 .leader-stat span {
   color: var(--muted);

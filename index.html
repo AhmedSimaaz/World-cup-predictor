@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260609-password-auth" />
+    <link rel="stylesheet" href="styles.css?v=20260610-favorite-team-signup" />
   </head>
   <body>
     <div class="shell">
@@ -27,17 +27,25 @@
               <span>Email</span>
               <input id="emailInput" name="email" type="email" autocomplete="email" placeholder="name@company.com" required />
             </label>
-            <label>
+            <label class="display-name-field hidden">
               <span>Display name</span>
               <input id="nameInput" name="name" type="text" autocomplete="name" placeholder="Sam" maxlength="32" />
+            </label>
+            <label class="favorite-team-field hidden">
+              <span>Favorite team</span>
+              <select id="favoriteTeamInput" name="favoriteTeam">
+                <option value="">Choose a team</option>
+              </select>
             </label>
             <label>
               <span>Password</span>
               <input id="passwordInput" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" minlength="6" required />
             </label>
             <div class="auth-buttons">
-              <button type="submit" name="authAction" value="signIn">Sign in</button>
-              <button class="secondary-light" type="submit" name="authAction" value="signUp">Create account</button>
+              <button id="signInButton" type="submit" name="authAction" value="signIn">Sign in</button>
+              <button id="showSignUpButton" class="secondary-light" type="button">Create account</button>
+              <button id="createAccountButton" class="hidden" type="submit" name="authAction" value="signUp">Create account</button>
+              <button id="showSignInButton" class="secondary-light hidden" type="button">Sign in instead</button>
             </div>
           </form>
           <p class="hint" id="syncStatus">Local mode: predictions are stored in this browser until backend config is added.</p>
@@ -204,6 +212,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="fixtures.js?v=20260603b"></script>
     <script src="supabase-config.js?v=20260603b"></script>
-    <script src="app.js?v=20260609-approved-rynaa"></script>
+    <script src="app.js?v=20260610-favorite-team-signup"></script>
   </body>
 </html>

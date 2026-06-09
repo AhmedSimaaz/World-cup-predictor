@@ -220,6 +220,13 @@ const profileName = document.querySelector("#profileName");
 const profileEmail = document.querySelector("#profileEmail");
 const avatar = document.querySelector("#avatar");
 const loginForm = document.querySelector("#signInPanel form");
+const displayNameField = document.querySelector(".display-name-field");
+const favoriteTeamField = document.querySelector(".favorite-team-field");
+const favoriteTeamInput = document.querySelector("#favoriteTeamInput");
+const signInButton = document.querySelector("#signInButton");
+const showSignUpButton = document.querySelector("#showSignUpButton");
+const createAccountButton = document.querySelector("#createAccountButton");
+const showSignInButton = document.querySelector("#showSignInButton");
 const photoInput = document.querySelector("#photoInput");
 const switchUserButton = document.querySelector("#switchUserButton");
 const matchesList = document.querySelector("#matchesList");
@@ -238,6 +245,16 @@ document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => showView(tab.dataset.view));
 });
 
+showSignUpButton?.addEventListener("click", () => {
+  setAuthMode("signUp");
+});
+
+showSignInButton?.addEventListener("click", () => {
+  setAuthMode("signIn");
+});
+
+renderFavoriteTeamOptions();
+
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   handleLogin(event).catch((error) => {
@@ -249,7 +266,8 @@ loginForm.addEventListener("submit", (event) => {
 async function handleLogin(event) {
   const form = new FormData(loginForm);
   const email = String(form.get("email") || loginForm.querySelector("input[type='email']").value).trim().toLowerCase();
-  const name = String(form.get("name") || "").trim() || email.split("@")[0] || "Player";
+  const enteredName = String(form.get("name") || "").trim();
+  const favoriteTeam = String(form.get("favoriteTeam") || "").trim();
   const password = String(form.get("password") || "");
   const authAction = event.submitter?.value || "signIn";
 
@@ -272,9 +290,21 @@ async function handleLogin(event) {
       return;
     }
 
+    if (authAction === "signUp" && !enteredName) {
+      renderSyncStatus("Please enter a display name to create your account.");
+      loginForm.querySelector("#nameInput").focus();
+      return;
+    }
+
+    if (authAction === "signUp" && !isWorldCupTeam(favoriteTeam)) {
+      renderSyncStatus("Please choose your favorite team to create your account.");
+      favoriteTeamInput?.focus();
+      return;
+    }
+
     const authResult =
       authAction === "signUp"
-        ? await backend.client.auth.signUp({ email, password, options: { data: { name } } })
+        ? await backend.client.auth.signUp({ email, password, options: { data: { name: enteredName, favoriteTeam } } })
         : await backend.client.auth.signInWithPassword({ email, password });
 
     if (authResult.error) {
@@ -287,22 +317,65 @@ async function handleLogin(event) {
       return;
     }
 
-    setAuthenticatedUser(email, name);
+    const authName = authResult.data.user?.user_metadata?.name || enteredName || state.users[email]?.name || email.split("@")[0] || "Player";
+    const authFavoriteTeam = authResult.data.user?.user_metadata?.favoriteTeam || favoriteTeam || state.users[email]?.favoriteTeam || "";
+    setAuthenticatedUser(email, authName, authFavoriteTeam);
     renderSyncStatus("Signed in securely.");
   } else {
-    setAuthenticatedUser(email, name);
+    if (authAction === "signUp" && !enteredName) {
+      renderSyncStatus("Please enter a display name to create your account.");
+      loginForm.querySelector("#nameInput").focus();
+      return;
+    }
+
+    if (authAction === "signUp" && !isWorldCupTeam(favoriteTeam)) {
+      renderSyncStatus("Please choose your favorite team to create your account.");
+      favoriteTeamInput?.focus();
+      return;
+    }
+
+    const fallbackName = enteredName || state.users[email]?.name || email.split("@")[0] || "Player";
+    const fallbackFavoriteTeam = favoriteTeam || state.users[email]?.favoriteTeam || "";
+    setAuthenticatedUser(email, fallbackName, fallbackFavoriteTeam);
   }
 
   loginForm.reset();
+  setAuthMode("signIn");
   render();
 }
 
-function setAuthenticatedUser(email, name) {
+function setAuthenticatedUser(email, name, favoriteTeam = "") {
+  const existingName = state.users[email]?.name;
+  const existingFavoriteTeam = state.users[email]?.favoriteTeam;
+  const displayName = name || existingName || email.split("@")[0] || "Player";
   state.currentUser = email;
-  state.users[email] = state.users[email] || { email, name };
-  state.users[email].name = name;
+  state.users[email] = state.users[email] || { email, name: displayName };
+  state.users[email].name = displayName;
+  state.users[email].favoriteTeam = isWorldCupTeam(favoriteTeam) ? favoriteTeam : existingFavoriteTeam || "";
   saveState();
   syncPlayerToBackend(state.users[email]);
+}
+
+function setAuthMode(mode) {
+  const isSignUp = mode === "signUp";
+  displayNameField?.classList.toggle("hidden", !isSignUp);
+  favoriteTeamField?.classList.toggle("hidden", !isSignUp);
+  signInButton?.classList.toggle("hidden", isSignUp);
+  showSignUpButton?.classList.toggle("hidden", isSignUp);
+  createAccountButton?.classList.toggle("hidden", !isSignUp);
+  showSignInButton?.classList.toggle("hidden", !isSignUp);
+  loginForm?.setAttribute("data-auth-mode", mode);
+  const nameInput = loginForm?.querySelector("#nameInput");
+  const passwordInput = loginForm?.querySelector("#passwordInput");
+  if (nameInput) {
+    nameInput.required = isSignUp;
+  }
+  if (favoriteTeamInput) {
+    favoriteTeamInput.required = isSignUp;
+  }
+  if (passwordInput) {
+    passwordInput.autocomplete = isSignUp ? "new-password" : "current-password";
+  }
 }
 
 async function signOut() {
@@ -465,7 +538,8 @@ async function initBackend() {
       return;
     }
     const name = session.user.user_metadata?.name || state.users[email]?.name || email.split("@")[0];
-    setAuthenticatedUser(email, name);
+    const favoriteTeam = session.user.user_metadata?.favoriteTeam || state.users[email]?.favoriteTeam || "";
+    setAuthenticatedUser(email, name, favoriteTeam);
     render();
   });
 
@@ -503,7 +577,8 @@ async function restoreAuthSession() {
   }
 
   const name = data.session.user.user_metadata?.name || state.users[email]?.name || email.split("@")[0];
-  setAuthenticatedUser(email, name);
+  const favoriteTeam = data.session.user.user_metadata?.favoriteTeam || state.users[email]?.favoriteTeam || "";
+  setAuthenticatedUser(email, name, favoriteTeam);
   render();
 }
 
@@ -625,6 +700,7 @@ async function syncPlayerToBackend(user) {
     email: normalizeEmail(user.email),
     name: user.name || user.email.split("@")[0],
     photo: user.photo || null,
+    favorite_team: isWorldCupTeam(user.favoriteTeam) ? user.favoriteTeam : null,
     updated_at: new Date().toISOString()
   };
 
@@ -853,6 +929,7 @@ function renderLeaderboard() {
             <div>
               <span class="leader-player-name">
                 <strong>${escapeHtml(row.user.name)}</strong>
+                ${renderFavoriteTeamFlagMarkup(row.user.favoriteTeam)}
               </span>
               <span>${escapeHtml(row.user.email)}</span>
             </div>
@@ -879,6 +956,21 @@ function renderLeaderboard() {
       }
     });
   });
+}
+
+function renderFavoriteTeamOptions() {
+  if (!favoriteTeamInput) return;
+  favoriteTeamInput.innerHTML = `
+    <option value="">Choose a team</option>
+    ${getWorldCupTeams()
+      .map((team) => `<option value="${escapeHtml(team)}">${formatTeam(team)}</option>`)
+      .join("")}
+  `;
+}
+
+function renderFavoriteTeamFlagMarkup(team) {
+  if (!isWorldCupTeam(team)) return "";
+  return `<span class="leader-favorite-flag" title="Supports ${escapeHtml(team)}" aria-label="Supports ${escapeHtml(team)}">${formatFlagHtml(team)}</span>`;
 }
 
 function updateLeaderboardMovements(rows) {
