@@ -206,6 +206,7 @@ const FIFA_RANK_BY_TEAM = {
 
 let state = loadState();
 let selectedLeaderboardEmail = null;
+let leaderboardEmailByIndex = [];
 let recentlyAddedFixtureId = null;
 const backend = {
   client: null,
@@ -236,7 +237,11 @@ const leaderboard = document.querySelector("#leaderboard");
 const rankingsList = document.querySelector("#rankingsList");
 const resultsEditor = document.querySelector("#resultsEditor");
 const addResultButton = document.querySelector("#addResultButton");
+const missingPredictionsButton = document.querySelector("#missingPredictionsButton");
+const missingPredictionsPanel = document.querySelector("#missingPredictionsPanel");
 const fixtureList = document.querySelector("#fixtureList");
+const resultsSearch = document.querySelector("#resultsSearch");
+const resultsRoundFilter = document.querySelector("#resultsRoundFilter");
 const exportButton = document.querySelector("#exportButton");
 const resetButton = document.querySelector("#resetButton");
 const syncStatus = document.querySelector("#syncStatus");
@@ -424,6 +429,15 @@ addResultButton.addEventListener("click", () => {
   resultsEditor.classList.toggle("hidden");
   renderResultsEditor();
 });
+
+missingPredictionsButton?.addEventListener("click", () => {
+  if (!isAdminUser()) return;
+  missingPredictionsPanel.classList.toggle("hidden");
+  renderMissingPredictions();
+});
+
+resultsSearch?.addEventListener("input", renderFixtureList);
+resultsRoundFilter?.addEventListener("change", renderFixtureList);
 
 document.querySelector("#fixturesView").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -792,8 +806,10 @@ function render() {
   renderSyncStatus();
   renderSession();
   renderRoundFilter();
+  renderResultsRoundFilter();
   renderMatches();
   renderLeaderboard();
+  renderMissingPredictions();
   renderRankings();
   renderFixtureList();
   renderResultsEditor();
@@ -815,6 +831,7 @@ function renderSession() {
   loginPanel.classList.toggle("hidden", Boolean(user));
   profilePanel.classList.toggle("hidden", !user);
   addResultButton.classList.toggle("hidden", !isAdminUser());
+  missingPredictionsButton?.classList.toggle("hidden", !isAdminUser());
   exportButton?.classList.toggle("hidden", !isAdminUser());
   resetButton?.classList.toggle("hidden", !isAdminUser());
   document.querySelector(".fixture-editor")?.classList.toggle("hidden", !isAdminUser());
@@ -833,6 +850,16 @@ function renderRoundFilter() {
     .map((round) => `<option value="${escapeHtml(round)}">${escapeHtml(round)}</option>`)
     .join("")}`;
   roundFilter.value = rounds.includes(selected) ? selected : "all";
+}
+
+function renderResultsRoundFilter() {
+  if (!resultsRoundFilter) return;
+  const selected = resultsRoundFilter.value || "all";
+  const rounds = [...new Set(state.fixtures.map((fixture) => fixture.round))].sort();
+  resultsRoundFilter.innerHTML = `<option value="all">All rounds</option>${rounds
+    .map((round) => `<option value="${escapeHtml(round)}">${escapeHtml(round)}</option>`)
+    .join("")}`;
+  resultsRoundFilter.value = rounds.includes(selected) ? selected : "all";
 }
 
 function renderMatches() {
@@ -858,8 +885,10 @@ function renderMatches() {
   fixtures.forEach((fixture) => {
     const prediction = user ? getPrediction(user.email, fixture.id) : null;
     const locked = isFixtureLocked(fixture);
+    const waitingForTeams = isWaitingForKnockoutTeams(fixture);
+    const predictionsClosed = locked || waitingForTeams;
     const card = template.content.firstElementChild.cloneNode(true);
-    card.classList.toggle("locked", locked);
+    card.classList.toggle("locked", predictionsClosed);
     card.querySelector(".round").textContent = formatRoundLabel(fixture);
     card.querySelector(".date").textContent = formatDate(fixture.date);
     card.querySelector(".team-a").textContent = fixture.teamA;
@@ -872,14 +901,14 @@ function renderMatches() {
     card.querySelector(".score-a").value = prediction?.scoreA ?? "";
     card.querySelector(".score-b").value = prediction?.scoreB ?? "";
     card.querySelectorAll(".score").forEach((input) => {
-      input.disabled = !user || locked;
+      input.disabled = !user || predictionsClosed;
       input.placeholder = user ? "" : "-";
     });
-    card.querySelector(".score-form button").textContent = getPredictionButtonLabel(user, locked, prediction);
-    card.querySelector(".score-form button").disabled = !user || locked;
+    card.querySelector(".score-form button").textContent = getPredictionButtonLabel(user, locked, prediction, waitingForTeams);
+    card.querySelector(".score-form button").disabled = !user || predictionsClosed;
     card.querySelector(".score-form").addEventListener("submit", (event) => {
       event.preventDefault();
-      if (!user || locked) return;
+      if (!user || predictionsClosed) return;
       const scoreA = Number(card.querySelector(".score-a").value);
       const scoreB = Number(card.querySelector(".score-b").value);
       if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) return;
@@ -888,6 +917,7 @@ function renderMatches() {
       saveState();
       syncPredictionToBackend(user.email, fixture.id, state.predictions[user.email][fixture.id]);
       renderLeaderboard();
+      renderMissingPredictions();
     });
     matchesList.append(card);
   });
@@ -895,6 +925,7 @@ function renderMatches() {
 
 function renderLeaderboard() {
   selectedLeaderboardEmail = null;
+  const canSeePlayerEmails = Boolean(getCurrentUser());
   const rows = Object.values(state.users)
     .filter((user) => isApprovedEmail(user.email))
     .map((user) => ({ user, ...calculateScore(user.email) }))
@@ -913,6 +944,7 @@ function renderLeaderboard() {
   }
 
   const rankMovements = updateLeaderboardMovements(rows);
+  leaderboardEmailByIndex = rows.map((row) => row.user.email);
 
   leaderboard.innerHTML = `
       <div class="leader-header">
@@ -927,7 +959,7 @@ function renderLeaderboard() {
       ${rows
         .map(
           (row, index) => `
-        <div class="leader-row leader-rank-${index + 1}" role="button" tabindex="0" data-email="${escapeHtml(row.user.email)}">
+        <div class="leader-row leader-rank-${index + 1}" role="button" tabindex="0" data-player-index="${index}">
           <div class="rank-cell">
             <div class="rank">${index + 1}</div>
             ${renderRankMovementMarkup(rankMovements[row.user.email])}
@@ -939,7 +971,7 @@ function renderLeaderboard() {
                 <strong>${escapeHtml(row.user.name)}</strong>
                 ${renderFavoriteTeamFlagMarkup(row.user.favoriteTeam)}
               </span>
-              <span>${escapeHtml(row.user.email)}</span>
+              ${canSeePlayerEmails ? `<span>${escapeHtml(row.user.email)}</span>` : ""}
             </div>
           </div>
           <div class="leader-stat"><span>Points</span><strong>${row.points}</strong></div>
@@ -964,6 +996,61 @@ function renderLeaderboard() {
       }
     });
   });
+}
+
+function renderMissingPredictions() {
+  if (!missingPredictionsPanel || missingPredictionsPanel.classList.contains("hidden")) return;
+  if (!isAdminUser()) {
+    missingPredictionsPanel.innerHTML = "";
+    missingPredictionsPanel.classList.add("hidden");
+    return;
+  }
+
+  const players = Object.values(state.users)
+    .filter((user) => isApprovedEmail(user.email))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const openFixtures = state.fixtures
+    .filter((fixture) => !isFixtureLocked(fixture) && !isWaitingForKnockoutTeams(fixture))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (!players.length) {
+    missingPredictionsPanel.innerHTML = `<div class="empty">No players found yet.</div>`;
+    return;
+  }
+
+  const rows = openFixtures
+    .map((fixture) => {
+      const missingPlayers = players.filter((user) => !getPrediction(user.email, fixture.id));
+      return { fixture, missingPlayers };
+    })
+    .filter((row) => row.missingPlayers.length);
+
+  missingPredictionsPanel.innerHTML = `
+    <div class="missing-head">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h3>Missing predictions</h3>
+      </div>
+      <span>${rows.length ? `${rows.length} matches need attention` : "All open matches are covered"}</span>
+    </div>
+    ${
+      rows.length
+        ? rows
+            .map(
+              ({ fixture, missingPlayers }) => `
+        <div class="missing-row">
+          <div>
+            <strong>${formatTeamHtml(fixture.teamA)} vs ${formatTeamHtml(fixture.teamB)}</strong>
+            <span>${escapeHtml(formatRoundLabel(fixture))} &middot; ${formatDate(fixture.date)}</span>
+          </div>
+          <p>${missingPlayers.map((user) => escapeHtml(user.name)).join(", ")}</p>
+        </div>
+      `
+            )
+            .join("")
+        : `<div class="empty">Everyone has predicted the currently open matches.</div>`
+    }
+  `;
 }
 
 function renderFavoriteTeamOptions() {
@@ -1054,7 +1141,8 @@ function renderRankings() {
 }
 
 function togglePlayerPredictions(row) {
-  const email = row.dataset.email;
+  const email = leaderboardEmailByIndex[Number(row.dataset.playerIndex)];
+  if (!email) return;
   const wasOpen = row.classList.contains("selected");
   closePlayerPredictions();
   if (wasOpen) return;
@@ -1156,18 +1244,34 @@ function renderResultsEditor() {
       const scoreA = Number(scoreAInput.value);
       const scoreB = Number(scoreBInput.value);
       if (!fixture || !Number.isInteger(scoreA) || !Number.isInteger(scoreB)) return;
+      if (!confirmResultUpdate(fixture, scoreA, scoreB)) return;
       fixture.result = { scoreA, scoreB };
       saveState();
       syncResultToBackend(fixture);
       renderLeaderboard();
+      renderMissingPredictions();
     });
   });
 }
 
 function renderFixtureList() {
   const canEditResults = isAdminUser();
-  fixtureList.innerHTML = state.fixtures
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  const query = (resultsSearch?.value || "").trim().toLowerCase();
+  const round = resultsRoundFilter?.value || "all";
+  const fixtures = state.fixtures
+    .filter((fixture) => round === "all" || fixture.round === round)
+    .filter((fixture) => {
+      const haystack = `${fixture.teamA} ${fixture.teamB} ${fixture.round} ${fixture.venue}`.toLowerCase();
+      return haystack.includes(query);
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (!fixtures.length) {
+    fixtureList.innerHTML = `<div class="empty">No results found.</div>`;
+    return;
+  }
+
+  fixtureList.innerHTML = fixtures
     .map(
       (fixture) => `
         <form class="fixture-row ${canEditResults ? "fixture-row-admin" : ""} ${fixture.id === recentlyAddedFixtureId ? "fixture-row-new" : ""}" data-fixture-id="${fixture.id}">
@@ -1199,6 +1303,7 @@ function renderFixtureList() {
 
       if (scoreAInput.value !== "" || scoreBInput.value !== "") {
         if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) return;
+        if (!confirmResultUpdate(fixture, scoreA, scoreB)) return;
         fixture.result = { scoreA, scoreB };
         syncResultToBackend(fixture);
       }
@@ -1207,6 +1312,7 @@ function renderFixtureList() {
       syncFixtureOverrideToBackend(fixture);
       renderMatches();
       renderLeaderboard();
+      renderMissingPredictions();
       renderFixtureList();
       renderResultsEditor();
     });
@@ -1250,6 +1356,11 @@ function renderEditableFixtureResult(fixture) {
 
 function renderReadOnlyFixtureResult(fixture) {
   return `<strong class="fixture-result-readonly">${fixture.result ? `${fixture.result.scoreA}-${fixture.result.scoreB}` : "Pending"}</strong>`;
+}
+
+function confirmResultUpdate(fixture, scoreA, scoreB) {
+  const previous = fixture.result ? ` Previous result: ${fixture.result.scoreA}-${fixture.result.scoreB}.` : "";
+  return confirm(`Save final score for ${fixture.teamA} vs ${fixture.teamB} as ${scoreA}-${scoreB}? This will update the leaderboard.${previous}`);
 }
 
 function calculateScore(email) {
@@ -1327,6 +1438,14 @@ function isPlaceholderTeam(team) {
   return /^(team tbd|group .*(winner|runner-up|3rd place)|match \d+ (winner|loser))$/i.test(String(team || "").trim());
 }
 
+function isWaitingForKnockoutTeams(fixture) {
+  return isKnockoutRound(fixture.round) && (isPlaceholderTeam(fixture.teamA) || isPlaceholderTeam(fixture.teamB));
+}
+
+function isKnockoutRound(round) {
+  return /round of|quarter|semi|third place|final/i.test(String(round || ""));
+}
+
 function getTeamGroup(team) {
   const fixture = WORLD_CUP_FIXTURES.find((item) => item.round.startsWith("Group ") && (item.teamA === team || item.teamB === team));
   return fixture?.round || "";
@@ -1352,8 +1471,9 @@ function isFixtureLocked(fixture) {
   return Date.now() >= new Date(fixture.date).getTime();
 }
 
-function getPredictionButtonLabel(user, locked, prediction) {
+function getPredictionButtonLabel(user, locked, prediction, waitingForTeams = false) {
   if (!user) return "Sign in";
+  if (waitingForTeams) return "Pending";
   if (locked && prediction) return "Locked";
   if (locked) return "Closed";
   return "Save";

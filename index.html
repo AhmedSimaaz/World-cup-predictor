@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260610-favorite-team-signup" />
+    <link rel="stylesheet" href="styles.css?v=20260610-admin-tools" />
   </head>
   <body>
     <div class="shell">
@@ -151,9 +151,13 @@
               <p class="eyebrow">Live standings</p>
               <h3>Colleague leaderboard</h3>
             </div>
-            <button id="addResultButton" class="secondary" type="button">Update match results</button>
+            <div class="admin-actions">
+              <button id="missingPredictionsButton" class="secondary-light hidden" type="button">Missing predictions</button>
+              <button id="addResultButton" class="secondary" type="button">Update match results</button>
+            </div>
           </div>
           <div id="leaderboard" class="leaderboard"></div>
+          <div id="missingPredictionsPanel" class="missing-predictions hidden"></div>
           <div id="resultsEditor" class="results-editor hidden"></div>
         </section>
 
@@ -182,6 +186,18 @@
               <input id="venueInput" type="text" placeholder="Venue" required />
               <button type="submit">Add fixture</button>
             </form>
+          </div>
+          <div class="toolbar results-toolbar">
+            <label class="search">
+              <span>Search</span>
+              <input id="resultsSearch" type="search" placeholder="Team, venue, or round" />
+            </label>
+            <label class="filter">
+              <span>Round</span>
+              <select id="resultsRoundFilter">
+                <option value="all">All rounds</option>
+              </select>
+            </label>
           </div>
           <div id="fixtureList" class="fixture-list"></div>
         </section>
@@ -212,6 +228,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="fixtures.js?v=20260603b"></script>
     <script src="supabase-config.js?v=20260603b"></script>
-    <script src="app.js?v=20260610-favorite-team-locked"></script>
+    <script src="app.js?v=20260610-private-leaderboard-emails"></script>
   </body>
 </html>

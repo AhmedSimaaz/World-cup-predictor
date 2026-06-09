@@ -631,6 +631,13 @@ button.secondary-light[type="submit"] {
   margin-bottom: 14px;
 }
 
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .leader-header,
 .leader-row {
   display: grid;
@@ -864,6 +871,62 @@ button.secondary-light[type="submit"] {
   margin-top: 6px;
 }
 
+.missing-predictions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.missing-head,
+.missing-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.missing-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.missing-head h3 {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+}
+
+.missing-head > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.missing-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(240px, 1.4fr);
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.missing-row strong,
+.missing-row span {
+  display: block;
+}
+
+.missing-row span,
+.missing-row p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.missing-row p {
+  margin: 0;
+  line-height: 1.4;
+}
+
 .player-predictions-head,
 .prediction-detail-row {
   border: 1px solid var(--line);
@@ -1089,6 +1152,15 @@ button.secondary-light[type="submit"] {
     grid-template-columns: 1fr;
   }
 
+  .admin-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .admin-actions button {
+    flex: 1 1 160px;
+  }
+
   .rankings-head p:last-child {
     max-width: none;
     text-align: left;
@@ -1187,6 +1259,15 @@ button.secondary-light[type="submit"] {
 
   .leader-row .leader-stat {
     grid-row: 2;
+  }
+
+  .missing-head,
+  .missing-row {
+    grid-template-columns: 1fr;
+  }
+
+  .missing-head {
+    align-items: flex-start;
   }
 
   .player-predictions-head {
