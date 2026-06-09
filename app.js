@@ -828,13 +828,19 @@ function renderSyncStatus(message) {
 
 function renderSession() {
   const user = getCurrentUser();
+  const isAdmin = isAdminUser();
   loginPanel.classList.toggle("hidden", Boolean(user));
   profilePanel.classList.toggle("hidden", !user);
-  addResultButton.classList.toggle("hidden", !isAdminUser());
-  missingPredictionsButton?.classList.toggle("hidden", !isAdminUser());
-  exportButton?.classList.toggle("hidden", !isAdminUser());
-  resetButton?.classList.toggle("hidden", !isAdminUser());
-  document.querySelector(".fixture-editor")?.classList.toggle("hidden", !isAdminUser());
+  addResultButton.classList.toggle("hidden", !isAdmin);
+  missingPredictionsButton?.classList.toggle("hidden", !isAdmin);
+  exportButton?.classList.toggle("hidden", !isAdmin);
+  resetButton?.classList.toggle("hidden", !isAdmin);
+  document.querySelectorAll(".admin-only").forEach((element) => element.classList.toggle("hidden", !isAdmin));
+  document.querySelector(".fixture-editor")?.classList.toggle("hidden", !isAdmin);
+
+  if (!isAdmin && document.querySelector("#fixturesView")?.classList.contains("active")) {
+    showView("predictions");
+  }
 
   if (!user) return;
 
@@ -1575,6 +1581,9 @@ function isCorrectGoalDifference(prediction, result) {
 }
 
 function showView(viewName) {
+  if (viewName === "fixtures" && !isAdminUser()) {
+    viewName = "predictions";
+  }
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === viewName));
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.querySelector(`#${viewName}View`).classList.add("active");
