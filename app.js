@@ -966,14 +966,16 @@ function renderLeaderboard() {
                 <strong>${escapeHtml(row.user.name)}</strong>
                 ${renderFavoriteTeamFlagMarkup(row.user.favoriteTeam)}
               </span>
-              ${canSeePlayerEmails ? `<span>${escapeHtml(row.user.email)}</span>` : ""}
+              ${canSeePlayerEmails ? `<span class="leader-email">${escapeHtml(row.user.email)}</span>` : ""}
             </div>
           </div>
-          <div class="leader-stat"><span>Predicted</span><strong>${row.predicted}</strong></div>
-          <div class="leader-stat"><span>Exact</span><strong>${row.exact}</strong></div>
-          <div class="leader-stat"><span>Result</span><strong>${row.result}</strong></div>
-          <div class="leader-stat"><span>One score</span><strong>${row.oneScore}</strong></div>
-          <div class="leader-stat"><span>Points</span><strong>${row.points}</strong></div>
+          <div class="leader-stats">
+            <div class="leader-stat"><span>Pred</span><strong>${row.predicted}</strong></div>
+            <div class="leader-stat"><span>Exact</span><strong>${row.exact}</strong></div>
+            <div class="leader-stat"><span>Result</span><strong>${row.result}</strong></div>
+            <div class="leader-stat"><span>1 score</span><strong>${row.oneScore}</strong></div>
+            <div class="leader-stat"><span>Points</span><strong>${row.points}</strong></div>
+          </div>
         </div>
       `
         )
