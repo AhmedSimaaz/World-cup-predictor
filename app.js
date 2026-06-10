@@ -2,6 +2,7 @@ const STORAGE_KEY = "worldCupPredictorState";
 const APP_DATA_VERSION = "20260605-approved-email-enforced";
 const DISPLAY_TIME_ZONE = "Indian/Maldives";
 const DISPLAY_TIME_ZONE_LABEL = "MVT";
+const PREDICTION_OPEN_HOURS = 48;
 const ADMIN_EMAILS = ["ahmedsimaaz09@gmail.com", "ahmedbych@gmail.com"];
 const APPROVED_EMAILS = [
   "aasifappi@gmail.com",
@@ -24,7 +25,8 @@ const APPROVED_EMAILS = [
   "ahmedsimaaz09@gmail.com",
   "aaishaa22990@gmail.com",
   "aishathmuasha@gmail.com",
-  "rynaa03ibrahim@gmail.com"
+  "rynaa03ibrahim@gmail.com",
+  "fathimathameesha@gmail.com"
 ];
 const FLAG_BY_TEAM = {
   Algeria: "🇩🇿",
@@ -891,7 +893,8 @@ function renderMatches() {
     const prediction = user ? getPrediction(user.email, fixture.id) : null;
     const locked = isFixtureLocked(fixture);
     const waitingForTeams = isWaitingForKnockoutTeams(fixture);
-    const predictionsClosed = locked || waitingForTeams;
+    const notOpenYet = !isPredictionWindowOpen(fixture);
+    const predictionsClosed = locked || waitingForTeams || notOpenYet;
     const card = template.content.firstElementChild.cloneNode(true);
     card.classList.toggle("locked", predictionsClosed);
     card.querySelector(".round").textContent = formatRoundLabel(fixture);
@@ -909,7 +912,7 @@ function renderMatches() {
       input.disabled = !user || predictionsClosed;
       input.placeholder = user ? "" : "-";
     });
-    card.querySelector(".score-form button").textContent = getPredictionButtonLabel(user, locked, prediction, waitingForTeams);
+    card.querySelector(".score-form button").textContent = getPredictionButtonLabel(user, locked, prediction, waitingForTeams, notOpenYet);
     card.querySelector(".score-form button").disabled = !user || predictionsClosed;
     card.querySelector(".score-form").addEventListener("submit", (event) => {
       event.preventDefault();
@@ -1021,7 +1024,7 @@ function renderMissingPredictions() {
     .filter((user) => isApprovedEmail(user.email))
     .sort((a, b) => a.name.localeCompare(b.name));
   const openFixtures = state.fixtures
-    .filter((fixture) => !isFixtureLocked(fixture) && !isWaitingForKnockoutTeams(fixture))
+    .filter((fixture) => !isFixtureLocked(fixture) && !isWaitingForKnockoutTeams(fixture) && isPredictionWindowOpen(fixture))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (!players.length) {
@@ -1477,9 +1480,16 @@ function isFixtureLocked(fixture) {
   return Date.now() >= new Date(fixture.date).getTime();
 }
 
-function getPredictionButtonLabel(user, locked, prediction, waitingForTeams = false) {
+function isPredictionWindowOpen(fixture) {
+  const kickoff = new Date(fixture.date).getTime();
+  const opensAt = kickoff - PREDICTION_OPEN_HOURS * 60 * 60 * 1000;
+  return Date.now() >= opensAt;
+}
+
+function getPredictionButtonLabel(user, locked, prediction, waitingForTeams = false, notOpenYet = false) {
   if (!user) return "Sign in";
   if (waitingForTeams) return "Pending";
+  if (notOpenYet) return "Opens soon";
   if (locked && prediction) return "Locked";
   if (locked) return "Closed";
   return "Save";
@@ -1569,7 +1579,13 @@ function formatResult(fixture) {
   if (fixture.result) {
     return `Final score: ${fixture.result.scoreA}-${fixture.result.scoreB}`;
   }
-  return isFixtureLocked(fixture) ? "Awaiting final score" : "Result pending";
+  if (isFixtureLocked(fixture)) return "Awaiting final score";
+  if (!isPredictionWindowOpen(fixture)) return `Predictions open ${formatDate(getPredictionOpenDate(fixture))}`;
+  return "Result pending";
+}
+
+function getPredictionOpenDate(fixture) {
+  return new Date(new Date(fixture.date).getTime() - PREDICTION_OPEN_HOURS * 60 * 60 * 1000);
 }
 
 function showView(viewName) {
