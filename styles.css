@@ -456,7 +456,8 @@ button.secondary-light[type="submit"] {
 .matches,
 .fixture-list,
 .leaderboard,
-.results-editor {
+.results-editor,
+.admin-prediction-panel {
   display: grid;
   gap: 12px;
 }
@@ -1027,6 +1028,75 @@ button.secondary-light[type="submit"] {
   margin-top: 12px;
 }
 
+.admin-prediction-panel {
+  margin-top: 12px;
+}
+
+.admin-prediction-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.admin-prediction-head,
+.admin-prediction-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-prediction-head h3 {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+}
+
+.admin-prediction-head > span,
+.admin-prediction-note,
+.admin-prediction-footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.admin-prediction-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.9fr) minmax(260px, 1.35fr);
+  gap: 12px;
+}
+
+.admin-prediction-score {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 58px auto 58px minmax(120px, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-prediction-score > span:first-child {
+  justify-self: end;
+  text-align: right;
+}
+
+.admin-prediction-score > span:last-child {
+  justify-self: start;
+}
+
+.admin-prediction-score input {
+  min-height: 40px;
+  padding: 0;
+  text-align: center;
+  font-weight: 800;
+}
+
+.admin-prediction-footer button {
+  flex: 0 0 auto;
+}
+
 .missing-head,
 .missing-row {
   border: 1px solid var(--line);
@@ -1443,12 +1513,35 @@ button.secondary-light[type="submit"] {
   }
 
   .missing-head,
-  .missing-row {
+  .missing-row,
+  .admin-prediction-head,
+  .admin-prediction-footer {
     grid-template-columns: 1fr;
   }
 
   .missing-head {
     align-items: flex-start;
+  }
+
+  .admin-prediction-head,
+  .admin-prediction-footer {
+    display: grid;
+    align-items: flex-start;
+  }
+
+  .admin-prediction-grid,
+  .admin-prediction-score {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-prediction-score > span:first-child,
+  .admin-prediction-score > span:last-child {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .admin-prediction-score b {
+    display: none;
   }
 
   .player-predictions-head {

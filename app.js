@@ -243,6 +243,8 @@ const resultsEditor = document.querySelector("#resultsEditor");
 const addResultButton = document.querySelector("#addResultButton");
 const missingPredictionsButton = document.querySelector("#missingPredictionsButton");
 const missingPredictionsPanel = document.querySelector("#missingPredictionsPanel");
+const adminPredictionButton = document.querySelector("#adminPredictionButton");
+const adminPredictionPanel = document.querySelector("#adminPredictionPanel");
 const fixtureList = document.querySelector("#fixtureList");
 const resultsSearch = document.querySelector("#resultsSearch");
 const resultsRoundFilter = document.querySelector("#resultsRoundFilter");
@@ -438,6 +440,16 @@ missingPredictionsButton?.addEventListener("click", () => {
   if (!isAdminUser()) return;
   missingPredictionsPanel.classList.toggle("hidden");
   renderMissingPredictions();
+});
+
+adminPredictionButton?.addEventListener("click", () => {
+  if (!isAdminUser()) return;
+  const willOpen = adminPredictionPanel.classList.contains("hidden");
+  adminPredictionPanel.classList.toggle("hidden");
+  renderAdminPredictionPanel();
+  if (willOpen) {
+    adminPredictionPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 });
 
 resultsSearch?.addEventListener("input", renderFixtureList);
@@ -734,7 +746,7 @@ async function syncPlayerToBackend(user) {
 
 async function syncPredictionToBackend(email, fixtureId, prediction) {
   email = normalizeEmail(email);
-  if (!backend.ready || !backend.loadedShared || !email || !prediction || !isApprovedEmail(email)) return;
+  if (!backend.ready || !backend.loadedShared || !email || !prediction || !isApprovedEmail(email)) return false;
 
   await syncPlayerToBackend(state.users[email] || { email, name: email.split("@")[0] });
   const { error } = await backend.client.from("predictions").upsert(
@@ -747,7 +759,11 @@ async function syncPredictionToBackend(email, fixtureId, prediction) {
     },
     { onConflict: "email,fixture_id" }
   );
-  if (error) console.error(error);
+  if (error) {
+    console.error(error);
+    return false;
+  }
+  return true;
 }
 
 async function syncResultToBackend(fixture) {
@@ -812,6 +828,7 @@ function render() {
   renderMatches();
   renderLeaderboard();
   renderMissingPredictions();
+  renderAdminPredictionPanel();
   renderRankings();
   renderFixtureList();
   renderResultsEditor();
@@ -835,6 +852,10 @@ function renderSession() {
   profilePanel.classList.toggle("hidden", !user);
   addResultButton.classList.toggle("hidden", !isAdmin);
   missingPredictionsButton?.classList.toggle("hidden", !isAdmin);
+  adminPredictionButton?.classList.toggle("hidden", !isAdmin);
+  if (!isAdmin) {
+    adminPredictionPanel?.classList.add("hidden");
+  }
   exportButton?.classList.toggle("hidden", !isAdmin);
   resetButton?.classList.toggle("hidden", !isAdmin);
   document.querySelectorAll(".admin-only").forEach((element) => element.classList.toggle("hidden", !isAdmin));
@@ -1077,6 +1098,147 @@ function renderMissingPredictions() {
         : `<div class="empty">Everyone has predicted the currently open matches.</div>`
     }
   `;
+}
+
+function renderAdminPredictionPanel(message = "") {
+  if (!adminPredictionPanel || adminPredictionPanel.classList.contains("hidden")) return;
+  if (!isAdminUser()) {
+    adminPredictionPanel.innerHTML = "";
+    adminPredictionPanel.classList.add("hidden");
+    return;
+  }
+
+  const players = Object.values(state.users)
+    .filter((user) => isApprovedEmail(user.email))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const openFixtures = getAdminPredictionFixtures();
+
+  if (!players.length) {
+    adminPredictionPanel.innerHTML = `<div class="empty">No players found yet.</div>`;
+    return;
+  }
+
+  if (!openFixtures.length) {
+    adminPredictionPanel.innerHTML = `
+      <div class="admin-prediction-card">
+        <div>
+          <p class="eyebrow">Admin</p>
+          <h3>Add player prediction</h3>
+        </div>
+        <p class="admin-prediction-note">No matches are open for predictions right now.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const selectedEmail = normalizeEmail(adminPredictionPanel.querySelector("#adminPredictionPlayer")?.value) || players[0].email;
+  const selectedFixtureId = adminPredictionPanel.querySelector("#adminPredictionFixture")?.value || openFixtures[0].id;
+  const selectedFixture = openFixtures.find((fixture) => fixture.id === selectedFixtureId) || openFixtures[0];
+  const selectedPlayer = players.find((player) => player.email === selectedEmail) || players[0];
+  const existingPrediction = getPrediction(selectedPlayer.email, selectedFixture.id);
+
+  adminPredictionPanel.innerHTML = `
+    <form class="admin-prediction-card" id="adminPredictionForm">
+      <div class="admin-prediction-head">
+        <div>
+          <p class="eyebrow">Admin</p>
+          <h3>Add player prediction</h3>
+        </div>
+        <span>Only open matches can be changed.</span>
+      </div>
+      <div class="admin-prediction-grid">
+        <label>
+          <span>Player</span>
+          <select id="adminPredictionPlayer" required>
+            ${players
+              .map(
+                (player) =>
+                  `<option value="${escapeHtml(player.email)}" ${player.email === selectedPlayer.email ? "selected" : ""}>${escapeHtml(player.name)} (${escapeHtml(player.email)})</option>`
+              )
+              .join("")}
+          </select>
+        </label>
+        <label>
+          <span>Match</span>
+          <select id="adminPredictionFixture" required>
+            ${openFixtures
+              .map(
+                (fixture) =>
+                  `<option value="${escapeHtml(fixture.id)}" ${fixture.id === selectedFixture.id ? "selected" : ""}>${escapeHtml(formatRoundLabel(fixture))}: ${escapeHtml(fixture.teamA)} vs ${escapeHtml(fixture.teamB)} - ${formatDate(fixture.date)}</option>`
+              )
+              .join("")}
+          </select>
+        </label>
+        <div class="admin-prediction-score">
+          <span>${formatTeamHtml(selectedFixture.teamA)}</span>
+          <input id="adminPredictionScoreA" type="number" min="0" max="20" value="${existingPrediction?.scoreA ?? ""}" aria-label="${escapeHtml(selectedFixture.teamA)} prediction" required />
+          <b>:</b>
+          <input id="adminPredictionScoreB" type="number" min="0" max="20" value="${existingPrediction?.scoreB ?? ""}" aria-label="${escapeHtml(selectedFixture.teamB)} prediction" required />
+          <span>${formatTeamHtml(selectedFixture.teamB)}</span>
+        </div>
+      </div>
+      <div class="admin-prediction-footer">
+        <p>${message ? escapeHtml(message) : getAdminPredictionSummary(selectedPlayer, selectedFixture, existingPrediction)}</p>
+        <button type="submit">${existingPrediction ? "Update prediction" : "Save prediction"}</button>
+      </div>
+    </form>
+  `;
+
+  adminPredictionPanel.querySelector("#adminPredictionPlayer")?.addEventListener("change", () => renderAdminPredictionPanel());
+  adminPredictionPanel.querySelector("#adminPredictionFixture")?.addEventListener("change", () => renderAdminPredictionPanel());
+  adminPredictionPanel.querySelector("#adminPredictionForm")?.addEventListener("submit", handleAdminPredictionSubmit);
+}
+
+async function handleAdminPredictionSubmit(event) {
+  event.preventDefault();
+  if (!isAdminUser()) return;
+
+  const email = normalizeEmail(adminPredictionPanel.querySelector("#adminPredictionPlayer")?.value);
+  const fixtureId = adminPredictionPanel.querySelector("#adminPredictionFixture")?.value;
+  const fixture = state.fixtures.find((item) => item.id === fixtureId);
+  const player = state.users[email];
+  const scoreA = Number(adminPredictionPanel.querySelector("#adminPredictionScoreA")?.value);
+  const scoreB = Number(adminPredictionPanel.querySelector("#adminPredictionScoreB")?.value);
+
+  if (!player || !isApprovedEmail(email)) {
+    renderAdminPredictionPanel("Choose an approved player.");
+    return;
+  }
+  if (!fixture || !canAdminEditPredictionForFixture(fixture)) {
+    renderAdminPredictionPanel("This match is not open for predictions.");
+    return;
+  }
+  if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
+    renderAdminPredictionPanel("Enter a valid score for both teams.");
+    return;
+  }
+
+  const prediction = { scoreA, scoreB, savedAt: new Date().toISOString(), savedByAdmin: true };
+  state.predictions[email] = state.predictions[email] || {};
+  state.predictions[email][fixture.id] = prediction;
+  leaderboardMovements = {};
+  saveState();
+  renderLeaderboard();
+  renderMissingPredictions();
+
+  const synced = await syncPredictionToBackend(email, fixture.id, prediction);
+  const syncText = backend.ready && backend.loadedShared && !synced ? " Saved locally, but database sync failed." : "";
+  renderAdminPredictionPanel(`Saved ${scoreA}-${scoreB} for ${player.name}.${syncText}`);
+}
+
+function getAdminPredictionFixtures() {
+  return state.fixtures
+    .filter((fixture) => canAdminEditPredictionForFixture(fixture))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+function canAdminEditPredictionForFixture(fixture) {
+  return !isFixtureLocked(fixture) && !isWaitingForKnockoutTeams(fixture) && isPredictionWindowOpen(fixture);
+}
+
+function getAdminPredictionSummary(player, fixture, prediction) {
+  const existingText = prediction ? `Current prediction: ${prediction.scoreA}-${prediction.scoreB}.` : "No prediction saved yet.";
+  return `${player.name} - ${fixture.teamA} vs ${fixture.teamB}. ${existingText}`;
 }
 
 function renderFavoriteTeamOptions() {
