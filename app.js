@@ -1108,9 +1108,7 @@ function renderAdminPredictionPanel(message = "") {
     return;
   }
 
-  const players = Object.values(state.users)
-    .filter((user) => isApprovedEmail(user.email))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const players = getAdminPredictionPlayers();
   const openFixtures = getAdminPredictionFixtures();
 
   if (!players.length) {
@@ -1196,7 +1194,7 @@ async function handleAdminPredictionSubmit(event) {
   const email = normalizeEmail(adminPredictionPanel.querySelector("#adminPredictionPlayer")?.value);
   const fixtureId = adminPredictionPanel.querySelector("#adminPredictionFixture")?.value;
   const fixture = state.fixtures.find((item) => item.id === fixtureId);
-  const player = state.users[email];
+  const player = getAdminPredictionPlayers().find((item) => item.email === email);
   const scoreA = Number(adminPredictionPanel.querySelector("#adminPredictionScoreA")?.value);
   const scoreB = Number(adminPredictionPanel.querySelector("#adminPredictionScoreB")?.value);
 
@@ -1214,6 +1212,8 @@ async function handleAdminPredictionSubmit(event) {
   }
 
   const prediction = { scoreA, scoreB, savedAt: new Date().toISOString(), savedByAdmin: true };
+  state.users[email] = state.users[email] || { email, name: player.name };
+  state.users[email].name = state.users[email].name || player.name;
   state.predictions[email] = state.predictions[email] || {};
   state.predictions[email][fixture.id] = prediction;
   leaderboardMovements = {};
@@ -1230,6 +1230,32 @@ function getAdminPredictionFixtures() {
   return state.fixtures
     .filter((fixture) => canAdminEditPredictionForFixture(fixture))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+function getAdminPredictionPlayers() {
+  const usersByEmail = new Map(
+    Object.values(state.users)
+      .filter((user) => isApprovedEmail(user.email))
+      .map((user) => [normalizeEmail(user.email), user])
+  );
+
+  APPROVED_EMAILS.forEach((email) => {
+    if (!usersByEmail.has(email)) {
+      usersByEmail.set(email, {
+        email,
+        name: getDefaultNameFromEmail(email)
+      });
+    }
+  });
+
+  return [...usersByEmail.values()].sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
+}
+
+function getDefaultNameFromEmail(email) {
+  return String(email || "")
+    .split("@")[0]
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Player";
 }
 
 function canAdminEditPredictionForFixture(fixture) {
