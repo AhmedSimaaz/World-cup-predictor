@@ -26,7 +26,8 @@ const APPROVED_EMAILS = [
   "aaishaa22990@gmail.com",
   "aishathmuasha@gmail.com",
   "rynaa03ibrahim@gmail.com",
-  "fathimathameesha@gmail.com"
+  "fathimathameesha@gmail.com",
+  "basheeraali906@gmail.com"
 ];
 const FLAG_BY_TEAM = {
   Algeria: "🇩🇿",
